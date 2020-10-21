@@ -10,7 +10,8 @@ on:
     tags: [ v* ]
   # pull_request:
   #   branches: [ master ]
-
+env:
+  tf_version: '0.13.0'
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -34,13 +35,13 @@ jobs:
           # The branch, tag or SHA to checkout. When checking out the repository that
           # triggered a workflow, this defaults to the reference or SHA for that event.
           # Otherwise, uses the default branch.
-          ref: 'v0.12.29'
+          ref: v${{ env.tf_version }}
           path: 'terraform'
 
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.14.6'
+          go-version: '1.15.2'
 
       # Runs a single command using the runners shell
       - name: List root
@@ -64,7 +65,7 @@ jobs:
              tar -xzvf terraform-provider-artifactory_2.1.0_linux_x86_64.tar.gz -C ./plugins
 
       - name: Rename artifactory plugin
-        run: mv ./plugins/terraform-provider-artifactory ./plugins/terraform-provider-artifactory_v2.1.0
+        run: mkdir -p ./.plugins/github.com/atlassian/artifactory/2.1.0/linux_amd64; mv ./plugins/terraform-provider-artifactory $_
 
       - name: Download Octopus Deploy provider
         run: wget https://github.com/OctopusDeploy/terraform-provider-octopusdeploy/releases/download/v0.5.0/terraform-provider-octopusdeploy_linux_amd64_v0.5.0.zip
@@ -72,11 +73,11 @@ jobs:
       - name: Extract Octopus Deploy plugin
         run:  unzip terraform-provider-octopusdeploy_linux_amd64_v0.5.0.zip -d ./plugins
 
-      - name: Rename Octopus Deploy plugin
-        run: mv ./plugins/terraform-provider-octopusdeploy_linux_amd64_v0.5.0 ./plugins/terraform-provider-octopusdeploy_v0.5.0
+      - name: Rename and move Octopus Deploy plugin
+        run: mkdir -p ./.plugins/github.com/octopusdeploy/octopusdeploy/0.5.0/linux_amd64; mv ./plugins/terraform-provider-octopusdeploy_linux_amd64_v0.5.0 $_/terraform-provider-octopusdeploy
 
       # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Output date
         run: terraform-bundle package -os=linux -arch=amd64 terraform-bundle.hcl
       - name: Date
         id: date
@@ -86,7 +87,7 @@ jobs:
         run: ls -al
 
       - name: Write checksum
-        run: (shasum -a 256 < terraform_0.12.29-bundle${{ steps.date.outputs.date }}_linux_amd64.zip) > checksums.txt
+        run: (shasum -a 256 < terraform_${{ env.tf_version }}-bundle${{ steps.date.outputs.date }}_linux_amd64.zip) > checksums.txt
  
       - name: Publish Release
         uses: actions/create-release@v1
@@ -106,8 +107,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./terraform_0.12.29-bundle${{ steps.date.outputs.date }}_linux_amd64.zip
-          asset_name: terraform_0.12.29-bundle${{ steps.date.outputs.date }}_linux_amd64.zip
+          asset_path: ./terraform_${{ env.tf_version }}-bundle${{ steps.date.outputs.date }}_linux_amd64.zip
+          asset_name: terraform_${{ env.tf_version }}-bundle${{ steps.date.outputs.date }}_linux_amd64.zip
           asset_content_type: application/zip
       - name: Upload Release Asset
         id: upload-checksums-asset 
